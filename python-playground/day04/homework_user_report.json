@@ -1,0 +1,14 @@
+{
+  "total": 4,
+  "active": 3,
+  "role_count": {
+    "frontend": 2,
+    "backend": 1,
+    "qa": 1
+  },
+  "active_user_names": [
+    "Ace",
+    "Lily",
+    "Mia"
+  ]
+}
