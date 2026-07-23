@@ -11,6 +11,7 @@
 - `day05`：类、对象、dataclass、类型提示
 - `day06`：FastAPI 路由、请求体、接口联调
 - `day07`：pytest 测试、logging 日志、工程化基础
+- `day08`：FastAPI + SQLite 持久化接口
 
 ## 建议
 

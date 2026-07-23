@@ -162,6 +162,18 @@ http://127.0.0.1:8000/docs
 .\.venv\Scripts\python.exe -m pytest .\python-playground\day07\ -q
 ```
 
+## 运行第八天示例（FastAPI + SQLite）
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn python-playground.day08.main:app --reload
+```
+
+## 第八天接口文档
+
+```text
+http://127.0.0.1:8000/docs
+```
+
 ## SQLTools 配置
 
 当前工作区已经配置了 SQLTools SQLite 连接：
