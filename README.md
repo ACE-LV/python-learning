@@ -180,7 +180,7 @@ http://127.0.0.1:8000/docs
 http://127.0.0.1:8000/docs
 ```
 
-## 运行第九天到第十八天
+## 运行第九天到第十九天
 
 如果你还没有创建虚拟环境，下面命令里的 `python` 可以先直接使用系统 Python。
 
@@ -196,11 +196,18 @@ http://127.0.0.1:8000/docs
 | day16 | FastAPI 接口测试 | `python -m pytest .\python-playground\day16\ -q` |
 | day17 | 配置与环境变量 | `python -m uvicorn python-playground.day17.main:app --reload` |
 | day18 | 综合项目 - 学习任务追踪 API | `python -m uvicorn python-playground.day18.main:app --reload` |
+| day19 | 多模型 AI 接口接入 | `python -m uvicorn day19.main:app --reload --app-dir .\python-playground` |
 
-### 第九天到第十八天常用依赖
+### 第九天到第十九天常用依赖
 
 ```powershell
 python -m pip install fastapi uvicorn sqlalchemy pytest httpx
+```
+
+### 第十九天额外依赖
+
+```powershell
+python -m pip install openai anthropic google-genai
 ```
 
 ## SQLTools 配置

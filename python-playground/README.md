@@ -22,6 +22,7 @@
 - `day16`：FastAPI 接口测试
 - `day17`：配置与环境变量
 - `day18`：综合项目 - 学习任务追踪 API
+- `day19`：多模型 AI 接口接入（OpenAI / Anthropic / Gemini）
 
 ## 建议
 
