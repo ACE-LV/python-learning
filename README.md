@@ -30,6 +30,12 @@ Set-Location "c:\Users\ace.lv\workspace\project\python-learning"
 .\.venv\Scripts\python.exe --version
 ```
 
+如果当前目录没有 `.venv`，可以先临时使用系统 Python：
+
+```powershell
+python --version
+```
+
 ## 运行第一天示例
 
 ```powershell
@@ -172,6 +178,29 @@ http://127.0.0.1:8000/docs
 
 ```text
 http://127.0.0.1:8000/docs
+```
+
+## 运行第九天到第十八天
+
+如果你还没有创建虚拟环境，下面命令里的 `python` 可以先直接使用系统 Python。
+
+| 天数 | 主题 | 常用命令 |
+| ---- | ---- | -------- |
+| day09 | SQLAlchemy ORM 入门 | `python -m uvicorn python-playground.day09.main:app --reload` |
+| day10 | Pydantic 校验与响应模型 | `python -m uvicorn python-playground.day10.main:app --reload` |
+| day11 | 路由、Schema、Service 分层 | `python -m uvicorn python-playground.day11.main:app --reload` |
+| day12 | 分页、搜索与排序 | `python -m uvicorn python-playground.day12.main:app --reload` |
+| day13 | 依赖注入与简单鉴权 | `python -m uvicorn python-playground.day13.main:app --reload` |
+| day14 | SQLAlchemy 关系表 | `python -m uvicorn python-playground.day14.main:app --reload` |
+| day15 | 数据库迁移入门 | `python .\python-playground\day15\migration_demo.py` |
+| day16 | FastAPI 接口测试 | `python -m pytest .\python-playground\day16\ -q` |
+| day17 | 配置与环境变量 | `python -m uvicorn python-playground.day17.main:app --reload` |
+| day18 | 综合项目 - 学习任务追踪 API | `python -m uvicorn python-playground.day18.main:app --reload` |
+
+### 第九天到第十八天常用依赖
+
+```powershell
+python -m pip install fastapi uvicorn sqlalchemy pytest httpx
 ```
 
 ## SQLTools 配置
