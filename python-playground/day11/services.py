@@ -1,7 +1,7 @@
 from collections import Counter
 
 from .models import User
-from .schemas import UserCreate
+from .schemas import UserCreate, UserUpdate
 
 # services.py 放业务逻辑。
 # 路由层 main.py 不直接操作 USERS，而是调用这些函数；这样 main.py 可以保持很薄。
@@ -80,3 +80,11 @@ def build_report() -> dict[str, object]:
         "active_count": sum(1 for user in USERS if user.active),
         "role_count": dict(role_count),
     }
+
+def update_user_name(user_id:int,payload:UserUpdate):
+    user = get_user(user_id)
+    if user is None:
+        return None
+    if payload.name is not None:
+        user.name = payload.name
+    return user

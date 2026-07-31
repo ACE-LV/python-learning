@@ -41,3 +41,9 @@ class ReportPublic(BaseModel):
     active_count: int
     # role_count 是按角色分组的统计结果，例如 {"frontend": 2, "backend": 1}。
     role_count: dict[str, int]
+
+
+class UserUpdate(BaseModel):
+    # PATCH /users/{user_id} 的请求体。
+    # 允许局部更新，所以字段都可以不传。
+    name: str | None = Field(default=None, min_length=1, max_length=50)
