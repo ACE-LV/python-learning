@@ -47,3 +47,8 @@ class UserUpdate(BaseModel):
     # PATCH /users/{user_id} 的请求体。
     # 允许局部更新，所以字段都可以不传。
     name: str | None = Field(default=None, min_length=1, max_length=50)
+
+class UserUpdateName(BaseModel):
+    # PATCH /users/{user_id}/name 的请求体。
+    # 允许局部更新，所以字段都可以不传。
+    name: str | None = Field(default=None, min_length=1, max_length=50)

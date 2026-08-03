@@ -1,11 +1,20 @@
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, Query
 from pydantic import BaseModel
+from sqlalchemy import Boolean, Integer, String, create_engine, func, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 # 第 12 天主题：给前端表格页提供标准查询接口。
 # 前端表格常见需求：分页、搜索、筛选、排序，这些通常都通过 query 参数传给后端。
 app = FastAPI(title="Day12 Pagination Search Sort")
+
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "day12_users.db"
+DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 # Role 限制 role 查询参数和响应字段只能是固定角色值。
 Role = Literal["frontend", "backend", "tester", "pm"]
@@ -16,6 +25,19 @@ SortBy = Literal["id", "name", "role"]
 
 # SortOrder 限制排序方向只能是升序 asc 或降序 desc。
 SortOrder = Literal["asc", "desc"]
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class UserPublic(BaseModel):
@@ -41,17 +63,41 @@ class PageResult(BaseModel):
     total_pages: int
 
 
-# 用内存数据模拟数据库表。
-# 真实项目里这里会变成数据库查询：先 where 过滤，再 order by 排序，再 limit/offset 分页。
-USERS: list[dict[str, object]] = [
-    {"id": 1, "name": "Alice", "role": "frontend", "active": True},
-    {"id": 2, "name": "Bob", "role": "backend", "active": True},
-    {"id": 3, "name": "Cindy", "role": "tester", "active": False},
-    {"id": 4, "name": "Daniel", "role": "frontend", "active": True},
-    {"id": 5, "name": "Eva", "role": "pm", "active": True},
-    {"id": 6, "name": "Frank", "role": "backend", "active": False},
-    {"id": 7, "name": "Grace", "role": "frontend", "active": True},
-]
+def user_to_dict(user: User) -> dict[str, object]:
+    return {
+        "id": user.id,
+        "name": user.name,
+        "role": user.role,
+        "active": user.active,
+    }
+
+
+def init_db() -> None:
+    Base.metadata.create_all(bind=engine)
+
+    # Seed demo data only once for learning.
+    with Session(engine) as session:
+        existing = session.scalar(select(User.id).limit(1))
+        if existing is not None:
+            return
+
+        session.add_all(
+            [
+                User(name="Alice", role="frontend", active=True),
+                User(name="Bob", role="backend", active=True),
+                User(name="Cindy", role="tester", active=False),
+                User(name="Daniel", role="frontend", active=True),
+                User(name="Eva", role="pm", active=True),
+                User(name="Frank", role="backend", active=False),
+                User(name="Grace", role="frontend", active=True),
+            ]
+        )
+        session.commit()
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
 
 
 @app.get("/health")
@@ -86,45 +132,39 @@ def list_users(
     sort_by: SortBy = Query(default="id"),
     sort_order: SortOrder = Query(default="asc"),
 ) -> dict[str, object]:
-    # copy 一份列表，避免下面过滤/排序直接改动全局 USERS 的顺序。
-    rows = USERS.copy()
-
-    # 1. 搜索：按 name 包含 keyword 过滤。
-    # lower() 用来做不区分大小写搜索，例如 keyword=a 能匹配 Alice/Grace。
+    conditions = []
     if keyword:
         lowered_keyword = keyword.lower()
-        rows = [user for user in rows if lowered_keyword in str(user["name"]).lower()]
-
-    # 2. 角色筛选：只保留指定 role 的用户。
+        conditions.append(func.lower(User.name).contains(lowered_keyword))
     if role is not None:
-        rows = [user for user in rows if user["role"] == role]
-
-    # 3. 启用状态筛选：只保留 active 状态匹配的用户。
+        conditions.append(User.role == role)
     if active is not None:
-        rows = [user for user in rows if user["active"] is active]
+        conditions.append(User.active == active)
 
-    # 4. 排序：必须在分页前做。
-    # 如果先分页再排序，只会排序当前页，整体顺序会错。
-    rows.sort(key=lambda user: user[sort_by], reverse=sort_order == "desc")
+    sort_mapping = {
+        "id": User.id,
+        "name": User.name,
+        "role": User.role,
+    }
+    sort_column = sort_mapping[sort_by]
+    ordered_column = sort_column.desc() if sort_order == "desc" else sort_column.asc()
 
-    # 5. total 必须在分页前计算。
-    # total 表示过滤后的总条数，不是当前页 items 的数量。
-    total = len(rows)
-
-    # 6. 分页：把 page/page_size 转成列表切片范围。
-    # page=1,page_size=5 -> start=0,end=5。
-    # page=2,page_size=5 -> start=5,end=10。
     start = (page - 1) * page_size
-    end = start + page_size
-    items = rows[start:end]
 
-    # 向上取整计算总页数。
-    # 例如 total=7,page_size=5 -> (7+5-1)//5 = 2 页。
-    total_pages = (total + page_size - 1) // page_size
+    with Session(engine) as session:
+        total = session.scalar(select(func.count()).select_from(User).where(*conditions)) or 0
+        stmt = (
+            select(User)
+            .where(*conditions)
+            .order_by(ordered_column)
+            .offset(start)
+            .limit(page_size)
+        )
+        rows = session.scalars(stmt).all()
 
-    # 返回前端表格需要的标准分页结构。
+    total_pages = (total + page_size - 1) // page_size if total else 0
     return {
-        "items": items,
+        "items": [user_to_dict(user) for user in rows],
         "total": total,
         "page": page,
         "page_size": page_size,

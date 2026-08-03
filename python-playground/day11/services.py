@@ -81,10 +81,15 @@ def build_report() -> dict[str, object]:
         "role_count": dict(role_count),
     }
 
-def update_user_name(user_id:int,payload:UserUpdate):
+
+def update_user_name(user_id: int, payload: UserUpdate):
     user = get_user(user_id)
     if user is None:
         return None
     if payload.name is not None:
         user.name = payload.name
     return user
+
+
+def get_active_users() -> list[dict[str, object]]:
+    return [user for user in USERS if user.active]

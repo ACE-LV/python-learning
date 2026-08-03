@@ -1,16 +1,39 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import Integer, String, create_engine, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 # 第 16 天主题：给 FastAPI 接口写自动化测试。
 # main.py 提供被测试的 API，test_main.py 使用 TestClient 模拟 HTTP 请求。
 app = FastAPI(title="Day16 FastAPI Tests")
 
-# 用内存列表模拟数据库。
-# 测试时不希望依赖真实数据库，这样测试更快、更稳定。
-USERS: list[dict[str, object]] = []
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "day16_users.db"
+DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
 
-# 模拟自增 ID。
-NEXT_ID = 1
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+
+
+def user_to_dict(user: User) -> dict[str, object]:
+    return {"id": user.id, "name": user.name, "role": user.role}
+
+
+def init_db() -> None:
+    Base.metadata.create_all(bind=engine)
 
 
 class UserCreate(BaseModel):
@@ -24,18 +47,23 @@ def reset_users() -> None:
     # 重置测试数据。
     # 为什么需要：每个测试都应该独立运行，不依赖上一个测试新增/删除后的状态。
     # pytest fixture 会在每个测试前调用它。
-    global NEXT_ID, USERS
-
-    USERS = [{"id": 1, "name": "Alice", "role": "frontend"}]
-    NEXT_ID = 2
+    with Session(engine) as session:
+        session.query(User).delete()
+        session.add(User(id=1, name="Alice", role="frontend"))
+        session.commit()
 
 
 def find_user(user_id: int) -> dict[str, object] | None:
     # 根据 id 查找用户，找不到返回 None。
-    return next((user for user in USERS if user["id"] == user_id), None)
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if user is None:
+            return None
+        return user_to_dict(user)
 
 
 # 模块加载时先初始化一次数据，方便手动运行服务时也有默认用户。
+init_db()
 reset_users()
 
 
@@ -48,7 +76,9 @@ def health_check() -> dict[str, str]:
 @app.get("/users")
 def list_users() -> list[dict[str, object]]:
     # 返回当前所有用户。测试会断言初始数据只有 Alice。
-    return USERS
+    with Session(engine) as session:
+        users = session.scalars(select(User).order_by(User.id)).all()
+        return [user_to_dict(user) for user in users]
 
 
 @app.get("/users/{user_id}")
@@ -65,9 +95,9 @@ def get_user(user_id: int) -> dict[str, object]:
 def create_user(payload: UserCreate) -> dict[str, object]:
     # 创建用户接口。
     # 测试会覆盖合法 payload 返回 200，以及非法 payload 返回 422。
-    global NEXT_ID
-
-    user = {"id": NEXT_ID, "name": payload.name, "role": payload.role}
-    USERS.append(user)
-    NEXT_ID += 1
-    return user
+    with Session(engine) as session:
+        user = User(name=payload.name, role=payload.role)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user_to_dict(user)

@@ -1,8 +1,18 @@
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import Integer, String, create_engine, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 # 第 13 天主题：FastAPI 依赖注入 Depends + 最小 token 鉴权。
 app = FastAPI(title="Day13 Depends Auth")
+
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "day13_auth.db"
+DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 # 演示用 token。
 # 真实项目不会把 token 写死在代码里，通常会从环境变量、配置中心或登录系统生成。
@@ -24,17 +34,55 @@ class NoteCreate(BaseModel):
     content: str = Field(min_length=1, max_length=500)
 
 
-# 用内存数据模拟“当前用户列表”。
-USERS = [
-    {"id": 1, "name": "Alice", "role": "frontend"},
-    {"id": 2, "name": "Bob", "role": "backend"},
-]
+class Base(DeclarativeBase):
+    pass
 
-# 用内存列表模拟需要登录后才能访问的 note 数据。
-NOTES: list[dict[str, object]] = []
 
-# 模拟 note 自增 ID。
-NEXT_NOTE_ID = 1
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    content: Mapped[str] = mapped_column(String(500), nullable=False)
+
+
+def user_to_dict(user: User) -> dict[str, object]:
+    return {"id": user.id, "name": user.name, "role": user.role}
+
+
+def note_to_dict(note: Note) -> dict[str, object]:
+    return {"id": note.id, "title": note.title, "content": note.content}
+
+
+def init_db() -> None:
+    Base.metadata.create_all(bind=engine)
+
+    # Seed users once for demo.
+    with Session(engine) as session:
+        existing = session.scalar(select(User.id).limit(1))
+        if existing is not None:
+            return
+
+        session.add_all(
+            [
+                User(name="Alice", role="frontend"),
+                User(name="Bob", role="backend"),
+            ]
+        )
+        session.commit()
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
 
 
 def require_token(authorization: str | None = Header(default=None)) -> None:
@@ -65,29 +113,37 @@ def get_me(_: None = Depends(require_token)) -> dict[str, object]:
     # 受保护接口：调用前会先执行 require_token。
     # 参数名写成 _ 表示我们不关心依赖函数的返回值，只关心它能否通过校验。
     # token 不对时，require_token 会直接抛 401，get_me 的函数体不会执行。
-    return USERS[0]
+    with Session(engine) as session:
+        user = session.scalar(select(User).order_by(User.id).limit(1))
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user_to_dict(user)
 
 
 @app.get("/admin/users", response_model=list[UserPublic])
 def list_users(_: None = Depends(require_token)) -> list[dict[str, object]]:
     # 管理员用户列表接口，目前用同一个 require_token 做最小鉴权。
     # practice 里会进一步练习 require_admin_token，把普通 token 和 admin token 区分开。
-    return USERS
+    with Session(engine) as session:
+        users = session.scalars(select(User).order_by(User.id)).all()
+        return [user_to_dict(user) for user in users]
 
 
 @app.post("/notes")
 def create_note(payload: NoteCreate, _: None = Depends(require_token)) -> dict[str, object]:
     # 创建 note 也需要 token。
     # FastAPI 执行顺序：先校验 token 依赖，再校验/解析 payload，然后进入函数体。
-    global NEXT_NOTE_ID
-
-    note = {"id": NEXT_NOTE_ID, "title": payload.title, "content": payload.content}
-    NOTES.append(note)
-    NEXT_NOTE_ID += 1
-    return note
+    with Session(engine) as session:
+        note = Note(title=payload.title, content=payload.content)
+        session.add(note)
+        session.commit()
+        session.refresh(note)
+        return note_to_dict(note)
 
 
 @app.get("/notes")
 def list_notes(_: None = Depends(require_token)) -> list[dict[str, object]]:
     # 查询 notes 也需要 token。
-    return NOTES
+    with Session(engine) as session:
+        notes = session.scalars(select(Note).order_by(Note.id)).all()
+        return [note_to_dict(note) for note in notes]

@@ -1,7 +1,13 @@
 from fastapi import FastAPI, HTTPException
 
 from . import services
-from .schemas import ReportPublic, UserCreate, UserPublic, UserUpdateRole
+from .schemas import (
+    ReportPublic,
+    UserCreate,
+    UserPublic,
+    UserUpdateRole,
+    UserUpdateName,
+)
 
 # main.py 只负责 FastAPI 路由入口。
 # 它不直接写业务规则，而是把请求交给 services.py，再把 service 结果转换成 HTTP 响应。
@@ -68,3 +74,20 @@ def delete_user(user_id: int) -> dict[str, bool]:
 def get_report() -> dict[str, object]:
     # 报表接口：路由层只暴露 HTTP 入口，统计逻辑放在 service。
     return services.build_report()
+
+
+@app.patch("/users/{user_id}/name")
+def update_user_name(user_id: int, payload: UserUpdateName) -> dict[str, object]:
+    if payload.name is None:
+        raise HTTPException(status_code=400, detail="Name is required")
+    if user_id <= 0:
+        raise HTTPException(status_code=400, detail="User ID must be greater than 0")
+    user = services.update_user_name(user_id, payload)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True}
+
+
+@app.get("/users/active", response_model=list[UserPublic])
+def get_active_users() -> list[dict[str, object]]:
+    return services.get_active_users()
