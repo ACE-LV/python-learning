@@ -1,0 +1,5 @@
+﻿id,name,role,course_id,case
+1,Alice,frontend,101.0,正常：用户和课程都存在
+2,Bob,backend,999.0,异常：课程不存在
+3,Diana,frontend,无报名,用户存在，但没有报名记录
+4,Evan,qa,无报名,用户存在，但没有报名记录

@@ -1,4 +1,4 @@
-﻿{
+{
   "python.REPL.enableREPLSmartSend": false,
   "python.testing.unittestArgs": [
     "-v",
@@ -16,5 +16,12 @@
     "${workspaceFolder}\\python-playground"
   ],
   "python-envs.defaultEnvManager": "ms-python.python:venv",
-  "python.testing.pytestPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+  "python.testing.pytestPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "python-envs.pythonProjects": [
+    {
+      "path": ".",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
 }

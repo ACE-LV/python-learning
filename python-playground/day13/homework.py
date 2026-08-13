@@ -21,6 +21,7 @@ DB_URL = f"sqlite:///{DB_PATH.as_posix()}"
 app = FastAPI(title="Day13 Homework Depends Auth")
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 API_TOKEN = "dev-token"
+ADMIN_TOKEN = "admin-token"
 
 
 @app.on_event("startup")
@@ -68,17 +69,6 @@ class Note(Base):
     content: Mapped[str] = mapped_column(nullable=False)
 
 
-class UserPublic(BaseModel):
-    id: int
-    name: str
-    role: str
-
-
-class NoteCreate(BaseModel):
-    title: str
-    content: str
-
-
 class UserResponse(BaseModel):
     id: int
     name: str
@@ -115,6 +105,19 @@ def require_token(authorization: str | None = Header(None)) -> None:
         )
 
 
+def require_admin_token(authorization: str | None = Header(None)) -> None:
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token"
+        )
+
+    expected_token = f"Bearer {ADMIN_TOKEN}"
+    if authorization != expected_token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin permission required"
+        )
+
+
 @app.get("/health", summary="健康检查接口", description="公开接口，无需鉴权")
 def health():
     return {"status": "ok"}
@@ -128,6 +131,7 @@ def health():
 )
 def get_me(_: None = Depends(require_token)) -> dict[str, object]:
     with Session(engine) as session:
+        # 学习阶段简化：当前用户固定取第一条；真实项目应从 token/session 解析用户身份。
         user = session.scalar(select(User).order_by(User.id).limit(1))
         if user is None:
             raise HTTPException(
@@ -152,9 +156,9 @@ def get_notes(_: None = Depends(require_token)) -> list[dict[str, object]]:
     "/admin/users",
     response_model=list[UserResponse],
     summary="获取所有用户",
-    description="需要鉴权，返回所有用户",
+    description="需要管理员权限，返回所有用户",
 )
-def get_admin_users(_: None = Depends(require_token)) -> list[dict[str, object]]:
+def get_admin_users(_: None = Depends(require_admin_token)) -> list[dict[str, object]]:
     with Session(engine) as session:
         users = session.scalars(select(User).order_by(User.id)).all()
         return [user_to_dict(user) for user in users]

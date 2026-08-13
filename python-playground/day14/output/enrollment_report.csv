@@ -1,0 +1,5 @@
+﻿name,role,title,level
+Alice,frontend,Python API,beginner
+Bob,backend,Python API,beginner
+Bob,backend,SQL for Backend,beginner
+Charlie,data,Pandas Data Analysis,beginner

@@ -204,6 +204,14 @@ http://127.0.0.1:8000/docs
 python -m pip install fastapi uvicorn sqlalchemy pytest httpx
 ```
 
+### 第十四天开始的数据处理依赖
+
+```powershell
+python -m pip install pandas
+```
+
+从 day14 开始，每天增加一个小的 pandas 加餐：用表格思维查看、筛选、统计、合并当天产生的数据。
+
 ### 第十九天额外依赖
 
 ```powershell

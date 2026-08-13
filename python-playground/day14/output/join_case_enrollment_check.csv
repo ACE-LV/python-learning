@@ -1,0 +1,4 @@
+﻿user_id,course_id,name,title,case
+1,101,Alice,Python API,正常：用户和课程都存在
+2,999,Bob,课程不存在,异常：课程不存在
+99,102,用户不存在,SQL for Backend,异常：用户不存在
