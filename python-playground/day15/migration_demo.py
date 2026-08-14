@@ -45,15 +45,13 @@ def init_migration_table(conn: sqlite3.Connection) -> None:
     # schema_migrations 是迁移版本表。
     # 它不是业务表，而是用来记录“哪些 migration 已经执行过”。
     # 真实项目里的 Alembic/Flyway/Liquibase 也都有类似版本表。
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS schema_migrations (
             version INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
-        """
-    )
+        """)
 
 
 def has_migration(conn: sqlite3.Connection, version: int) -> bool:
@@ -93,7 +91,9 @@ def seed_user() -> None:
     # 写入一条演示数据。
     # 这不是 migration，只是为了运行脚本后能看到 users 表里有数据。
     with get_conn() as conn:
-        existing = conn.execute("SELECT id FROM users WHERE name = ?", ("Alice",)).fetchone()
+        existing = conn.execute(
+            "SELECT id FROM users WHERE name = ?", ("Alice",)
+        ).fetchone()
         if existing is None:
             conn.execute(
                 "INSERT INTO users (name, role, email) VALUES (?, ?, ?)",
@@ -108,7 +108,9 @@ def print_state() -> None:
         columns = conn.execute("PRAGMA table_info(users)").fetchall()
         users = conn.execute("SELECT id, name, role, email FROM users").fetchall()
         # 查看已经执行过哪些 migration。
-        migrations = conn.execute("SELECT version, name, applied_at FROM schema_migrations").fetchall()
+        migrations = conn.execute(
+            "SELECT version, name, applied_at FROM schema_migrations"
+        ).fetchall()
 
     print("\nusers columns:")
     for column in columns:
